@@ -1,0 +1,64 @@
+{
+  "sites": [
+    {
+      "url": "https://werkenbij.uva.nl/vacatures",
+      "category": "onderwijs",
+      "added": "2026-01-23T16:17:57.330233",
+      "title": "Vacatures | Werken bij de Universiteit van Amsterdam"
+    },
+    {
+      "url": "https://vacaturesuvahva.nl/HvA/search/",
+      "category": "onderwijs",
+      "added": "2026-01-23T16:18:20.891094",
+      "title": "Hogeschool van Amsterdam: vacatures"
+    },
+    {
+      "url": "https://www.conservatoriumvanamsterdam.nl/vacatures/",
+      "category": "audio",
+      "added": "2026-01-23T16:18:32.552352",
+      "title": "Vacatures"
+    },
+    {
+      "url": "https://www.stimuleringsfonds.nl/vacatures",
+      "category": "fondsen",
+      "added": "2026-01-23T16:18:48.380665",
+      "title": "Stimuleringsfonds"
+    },
+    {
+      "url": "https://www.amsterdamsfondsvoordekunst.nl/over-afk/vacatures/",
+      "category": "fondsen",
+      "added": "2026-01-23T16:19:02.661424",
+      "title": "Vacatures"
+    },
+    {
+      "url": "https://www.stedelijk.nl/nl/museum/vacatures",
+      "category": "cultuur",
+      "added": "2026-01-23T16:19:13.785390",
+      "title": "Werken bij het Stedelijk"
+    },
+    {
+      "url": "https://submarine.nl/careers/",
+      "category": "3D",
+      "added": "2026-01-23T16:19:23.120786",
+      "title": "Careers - Submarine"
+    },
+    {
+      "url": "https://www.muziekgebouw.nl/nl/werken-bij-het-muziekgebouw-9952",
+      "category": "audio",
+      "added": "2026-01-23T16:19:33.598163",
+      "title": "Werken bij het Muziekgebouw | Muziekgebouw"
+    },
+    {
+      "url": "https://www.smp.nl/vacatures",
+      "category": "audio",
+      "added": "2026-01-24T15:37:35.140101",
+      "title": "SMP.nl"
+    },
+    {
+      "url": "https://hermanbroodacademie.nl/vacatures/",
+      "category": "audio",
+      "added": "2026-01-26T14:05:05.182124",
+      "title": "Vacatures - Herman Brood Academie"
+    }
+  ]
+}
