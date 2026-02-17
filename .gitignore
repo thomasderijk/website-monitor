@@ -1,0 +1,14 @@
+# Environment secrets
+.env
+
+# User data (created automatically on first run)
+data/config.json
+data/snapshots.json
+data/metadata.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+venv/
+.venv/

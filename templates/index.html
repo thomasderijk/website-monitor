@@ -113,17 +113,50 @@
             background: #4a4a4a;
         }
 
-        .btn-danger {
+        .btn-icon {
             background: transparent;
-            color: #ef4444;
-            padding: 0.35rem 0.65rem;
-            font-size: 0.75rem;
             border: 1px solid #3a3a3a;
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            flex-shrink: 0;
+        }
+
+        .btn-edit {
+            color: #a8a8a8;
+        }
+
+        .btn-edit:hover {
+            color: #e8e8e8;
+            background: #3a3a3a;
+            border-color: #4a4a4a;
+        }
+
+        .btn-danger {
+            color: #ef4444;
         }
 
         .btn-danger:hover {
             background: #2a1f1f;
             border-color: #4a3a3a;
+        }
+
+        .title-edit-input {
+            background: #1f1f1f;
+            border: 1px solid #cc785c;
+            border-radius: 4px;
+            color: #f5f5f5;
+            font-weight: 500;
+            font-size: 0.875rem;
+            padding: 0.1rem 0.4rem;
+            font-family: 'Inter', sans-serif;
+            outline: none;
+            width: 200px;
         }
 
         button:disabled {
@@ -227,6 +260,38 @@
             font-family: 'Inter', sans-serif;
             outline: none;
             min-width: 100px;
+        }
+
+        .category-edit-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .category-dropdown {
+            position: absolute;
+            top: calc(100% + 3px);
+            left: 0;
+            background: #2a2a2a;
+            border: 1px solid #cc785c;
+            border-radius: 6px;
+            min-width: 130px;
+            z-index: 1000;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        .category-option {
+            padding: 0.3rem 0.6rem;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #cc785c;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .category-option:hover,
+        .category-option.active {
+            background: #3a2f28;
         }
 
         .status {
@@ -345,6 +410,22 @@
         h3.category-heading:first-child {
             margin-top: 0;
         }
+
+        h3.category-heading-error {
+            color: #ef4444;
+            border-color: #4a2a2a;
+            margin-top: 1.5rem;
+        }
+
+        .site-item-error {
+            border-color: #4a2a2a;
+            background: #2a1f1f;
+        }
+
+        .site-item-error:hover {
+            background: #321f1f;
+            border-color: #5a2a2a;
+        }
     </style>
 </head>
 <body>
@@ -434,99 +515,117 @@
                     site.index = index;
                 });
 
+                // Helper to safely parse a URL
+                function parseDomain(url) {
+                    try {
+                        return new URL(url).hostname.replace('www.', '');
+                    } catch {
+                        return url; // Fallback to raw URL if malformed
+                    }
+                }
+
+                // Helper to render a single site row
+                function renderSiteRow(site) {
+                    const statusClass = `status-${site.status || 'new'}`;
+                    const statusText = site.status || 'new';
+                    const lastCheck = formatLastCheck(site.last_check);
+                    const selectorBadge = site.selector ? `<span class="selector-badge" title="Using CSS selector: ${site.selector}">📍 Targeted</span>` : '';
+                    const domain = parseDomain(site.url);
+                    const displayTitle = site.title || domain;
+                    return `
+                        <div class="site-item">
+                            <div class="site-info">
+                                <div class="site-title-wrapper">
+                                    <a href="${site.url}" target="_blank" class="site-url" title="${site.url}">${displayTitle}</a>
+                                    <div class="site-domain">${domain}</div>
+                                </div>
+                                <div class="site-meta">
+                                    <span class="category" onclick="editCategory(${site.index}, this)" title="Click to edit">${site.category}</span>
+                                    <span class="status ${statusClass}">${statusText}</span>
+                                    ${selectorBadge}
+                                    <span>${lastCheck}</span>
+                                </div>
+                            </div>
+                            <div style="display:flex; gap:0.35rem; flex-shrink:0;">
+                                <button class="btn-icon btn-edit" onclick="editTitle(${site.index}, this)" title="Rename">✎</button>
+                                <button class="btn-icon btn-danger" onclick="deleteSite(${site.index})" title="Remove">×</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                // Separate error sites - always shown at the bottom
+                const errorSites = sites.filter(s => s.status === 'error');
+                const normalSites = sites.filter(s => s.status !== 'error');
+
                 let html = '';
 
                 if (sortMode === 'last-changed') {
-                    // Sort by last_check timestamp (most recent first)
-                    const sortedSites = [...sites].sort((a, b) => {
-                        const aTime = a.last_check && a.last_check !== 'Never' ? new Date(a.last_check) : new Date(0);
-                        const bTime = b.last_check && b.last_check !== 'Never' ? new Date(b.last_check) : new Date(0);
+                    // Sort by last_changed timestamp (when a change was actually detected), most recent first
+                    // Sites that never had a change detected go to the bottom
+                    const sortedSites = [...normalSites].sort((a, b) => {
+                        const aTime = a.last_changed ? new Date(a.last_changed) : new Date(0);
+                        const bTime = b.last_changed ? new Date(b.last_changed) : new Date(0);
                         return bTime - aTime;
                     });
-
-                    // Render flat list without category headers
-                    sortedSites.forEach(site => {
-                        const statusClass = `status-${site.status || 'new'}`;
-                        const statusText = (site.status || 'new');
-                        const lastCheck = formatLastCheck(site.last_check);
-                        const selectorBadge = site.selector ? `<span class="selector-badge" title="Using CSS selector: ${site.selector}">📍 Targeted</span>` : '';
-
-                        // Extract domain from URL
-                        const domain = new URL(site.url).hostname.replace('www.', '');
-
-                        // Use title if available, otherwise use domain
-                        const displayTitle = site.title || domain;
-
-                        html += `
-                            <div class="site-item">
-                                <div class="site-info">
-                                    <div class="site-title-wrapper">
-                                        <a href="${site.url}" target="_blank" class="site-url" title="${site.url}">${displayTitle}</a>
-                                        <div class="site-domain">${domain}</div>
-                                    </div>
-                                    <div class="site-meta">
-                                        <span class="category" onclick="editCategory(${site.index}, this)" title="Click to edit">${site.category}</span>
-                                        <span class="status ${statusClass}">${statusText}</span>
-                                        ${selectorBadge}
-                                        <span>${lastCheck}</span>
-                                    </div>
-                                </div>
-                                <button class="btn-danger" onclick="deleteSite(${site.index})">Remove</button>
-                            </div>
-                        `;
-                    });
+                    sortedSites.forEach(site => { html += renderSiteRow(site); });
                 } else {
                     // Sort by category - group with headers
                     const byCategory = {};
-                    sites.forEach(site => {
+                    normalSites.forEach(site => {
                         const cat = site.category || 'Uncategorized';
                         if (!byCategory[cat]) byCategory[cat] = [];
                         byCategory[cat].push(site);
                     });
-
                     Object.keys(byCategory).sort().forEach(category => {
                         html += `<h3 class="category-heading">${category}</h3>`;
-                        byCategory[category].forEach(site => {
-                            const statusClass = `status-${site.status || 'new'}`;
-                            const statusText = (site.status || 'new');
-                            const lastCheck = formatLastCheck(site.last_check);
-                            const selectorBadge = site.selector ? `<span class="selector-badge" title="Using CSS selector: ${site.selector}">📍 Targeted</span>` : '';
-
-                            // Extract domain from URL
-                            const domain = new URL(site.url).hostname.replace('www.', '');
-
-                            // Use title if available, otherwise use domain
-                            const displayTitle = site.title || domain;
-
-                            html += `
-                                <div class="site-item">
-                                    <div class="site-info">
-                                        <div class="site-title-wrapper">
-                                            <a href="${site.url}" target="_blank" class="site-url" title="${site.url}">${displayTitle}</a>
-                                            <div class="site-domain">${domain}</div>
-                                        </div>
-                                        <div class="site-meta">
-                                            <span class="category" onclick="editCategory(${site.index}, this)" title="Click to edit">${site.category}</span>
-                                            <span class="status ${statusClass}">${statusText}</span>
-                                            ${selectorBadge}
-                                            <span>${lastCheck}</span>
-                                        </div>
-                                    </div>
-                                    <button class="btn-danger" onclick="deleteSite(${site.index})">Remove</button>
-                                </div>
-                            `;
-                        });
+                        byCategory[category].forEach(site => { html += renderSiteRow(site); });
                     });
                 }
 
-                // Add datalist for category suggestions
-                html += `
-                    <datalist id="categoryList">
-                        ${allCategories.map(cat => `<option value="${cat}">`).join('')}
-                    </datalist>
-                `;
+                // Always render error sites at the bottom in their own section
+                if (errorSites.length > 0) {
+                    html += `<h3 class="category-heading category-heading-error">Unreachable</h3>`;
+                    errorSites.forEach(site => {
+                        const lastCheck = formatLastCheck(site.last_check);
+                        const domain = parseDomain(site.url);
+                        const displayTitle = site.title || domain;
+                        html += `
+                            <div class="site-item site-item-error">
+                                <div class="site-info">
+                                    <div class="site-title-wrapper">
+                                        <div style="display:flex; align-items:center; gap:0.4rem;">
+                                            <span style="color:#ef4444; font-size:0.9rem; line-height:1;">!</span>
+                                            <a href="${site.url}" target="_blank" class="site-url" title="${site.url}">${displayTitle}</a>
+                                        </div>
+                                        <div class="site-domain">${site.url}</div>
+                                    </div>
+                                    <div class="site-meta">
+                                        <span class="status status-error">error</span>
+                                        <span>${lastCheck}</span>
+                                    </div>
+                                </div>
+                                <div style="display:flex; gap:0.35rem; flex-shrink:0;">
+                                    <button class="btn-icon btn-danger" onclick="deleteSite(${site.index})" title="Remove">×</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
 
                 container.innerHTML = html;
+
+                // Rebuild datalist on document.body so browsers reliably connect it to inputs
+                const existing = document.getElementById('categoryList');
+                if (existing) existing.remove();
+                const datalist = document.createElement('datalist');
+                datalist.id = 'categoryList';
+                allCategories.forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat;
+                    datalist.appendChild(opt);
+                });
+                document.body.appendChild(datalist);
             } catch (error) {
                 showMessage('Failed to load sites: ' + error.message, 'error');
             }
@@ -586,43 +685,121 @@
 
         function editCategory(siteIndex, element) {
             const currentCategory = element.textContent;
-
-            // Get all existing categories
             const allCategories = [...new Set(allSites.map(s => s.category || 'Uncategorized'))];
 
-            // Create input with datalist
+            // Build wrapper with input + custom dropdown
+            const wrapper = document.createElement('div');
+            wrapper.className = 'category-edit-wrapper';
+
             const input = document.createElement('input');
             input.type = 'text';
             input.className = 'category-edit-input';
             input.value = currentCategory;
-            input.setAttribute('list', 'categoryList');
 
-            // Replace badge with input
-            element.replaceWith(input);
+            const dropdown = document.createElement('div');
+            dropdown.className = 'category-dropdown';
+
+            const renderOptions = (filter) => {
+                const filtered = filter.trim()
+                    ? allCategories.filter(c => c.toLowerCase().includes(filter.toLowerCase()))
+                    : allCategories;
+                dropdown.innerHTML = '';
+                filtered.forEach(cat => {
+                    const opt = document.createElement('div');
+                    opt.className = 'category-option' + (cat === currentCategory ? ' active' : '');
+                    opt.textContent = cat;
+                    opt.addEventListener('mousedown', (e) => {
+                        e.preventDefault(); // Prevent blur before save
+                        saveCategory(cat);
+                    });
+                    dropdown.appendChild(opt);
+                });
+                dropdown.style.display = filtered.length ? 'block' : 'none';
+            };
+
+            wrapper.appendChild(input);
+            wrapper.appendChild(dropdown);
+            element.replaceWith(wrapper);
+
+            renderOptions(''); // Show all on open
             input.focus();
             input.select();
 
             let saving = false;
 
-            // Save on blur or Enter
-            const save = async () => {
+            const saveCategory = async (category) => {
                 if (saving) return;
                 saving = true;
+                dropdown.style.display = 'none';
 
-                const newCategory = input.value.trim() || 'Uncategorized';
-
+                const newCategory = (category || input.value.trim()) || 'Uncategorized';
                 try {
                     const response = await fetch(`/api/sites/${siteIndex}/category`, {
                         method: 'PATCH',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ category: newCategory })
                     });
-
                     if (response.ok) {
                         showMessage('Category updated');
-                        loadSites();
                     } else {
                         showMessage('Failed to update category', 'error');
+                    }
+                } catch (error) {
+                    showMessage('Error: ' + error.message, 'error');
+                }
+                loadSites();
+            };
+
+            input.addEventListener('input', () => renderOptions(input.value));
+            input.addEventListener('blur', () => {
+                // Small delay so mousedown on an option fires first
+                setTimeout(() => { if (!saving) saveCategory(); }, 150);
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') saveCategory();
+                if (e.key === 'Escape') { saving = true; loadSites(); }
+            });
+        }
+
+        function editTitle(siteIndex, buttonEl) {
+            // Find the anchor link sibling in this row
+            const row = buttonEl.closest('.site-item');
+            const link = row.querySelector('.site-url');
+            const currentTitle = link.textContent;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'title-edit-input';
+            input.value = currentTitle;
+
+            link.replaceWith(input);
+            input.focus();
+            input.select();
+
+            let saving = false;
+
+            const save = async () => {
+                if (saving) return;
+                saving = true;
+
+                const newTitle = input.value.trim();
+                if (!newTitle) {
+                    // Restore original if empty
+                    input.replaceWith(link);
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`/api/sites/${siteIndex}/title`, {
+                        method: 'PATCH',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ title: newTitle })
+                    });
+
+                    if (response.ok) {
+                        loadSites();
+                    } else {
+                        showMessage('Failed to update title', 'error');
                         loadSites();
                     }
                 } catch (error) {
@@ -631,23 +808,13 @@
                 }
             };
 
-            // Auto-save when selecting from datalist
-            input.addEventListener('input', (e) => {
-                const value = input.value.trim();
-                // If the value matches an existing category, save immediately
-                if (allCategories.includes(value) && value !== currentCategory) {
-                    setTimeout(() => save(), 100); // Small delay to ensure value is set
-                }
-            });
-
             input.addEventListener('blur', save);
-            input.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    input.blur();
-                }
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') input.blur();
+                if (e.key === 'Escape') { saving = true; input.replaceWith(link); }
             });
         }
-        
+
         async function checkNow() {
             const btn = event.target;
             btn.disabled = true;

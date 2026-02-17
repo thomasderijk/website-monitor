@@ -132,8 +132,8 @@ def check_all_sites():
         result = get_page_hash(url, selector)
         current_time = datetime.now().isoformat()
 
-        # Update title if we got one
-        if result.get('title') and result['title'] != site.get('title'):
+        # Update title if we got one (skip if manually edited)
+        if result.get('title') and result['title'] != site.get('title') and not site.get('title_locked'):
             site['title'] = result['title']
             config_changed = True
             print(f"  Updated title: {result['title']}")
@@ -171,16 +171,17 @@ def check_all_sites():
                     'new_hash': current_hash,
                     'detected_at': current_time
                 })
-                
+
                 snapshots[url] = {
                     'hash': current_hash,
                     'last_check': current_time,
+                    'last_changed': current_time,
                     'status': 'changed',
                     'previous_hash': previous_hash
                 }
                 print(f"  ✓ CHANGE DETECTED!")
             else:
-                # No change
+                # No change - update check time but preserve last_changed
                 snapshots[url]['last_check'] = current_time
                 snapshots[url]['status'] = 'unchanged'
                 print(f"  - No change")

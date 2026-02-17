@@ -3,14 +3,17 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import os
+from dotenv import load_dotenv
 
-# Email configuration - UPDATE THESE WITH YOUR DETAILS
-SMTP_SERVER = 'smtp.mail.me.com'  # Apple Mail SMTP server
-SMTP_PORT = 587  # TLS port
-SMTP_USERNAME = 'thomasderijk@me.com'  # Your Apple ID email
-SMTP_PASSWORD = 'svgs-pbgk-ckyc-sady'  # App-specific password (not your regular password!)
-FROM_EMAIL = 'thomasderijk@me.com'
-TO_EMAIL = 'thomasderijk@me.com'  # Where to send alerts
+load_dotenv()
+
+# Email configuration - set these in your .env file (see .env.example)
+SMTP_SERVER = os.getenv('SMTP_SERVER', 'smtp.mail.me.com')
+SMTP_PORT = int(os.getenv('SMTP_PORT', '587'))
+SMTP_USERNAME = os.getenv('SMTP_USERNAME', '')
+SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
+FROM_EMAIL = os.getenv('FROM_EMAIL', '')
+TO_EMAIL = os.getenv('TO_EMAIL', '')
 
 def send_digest_email(changes):
     """Send a single digest email with all detected changes"""

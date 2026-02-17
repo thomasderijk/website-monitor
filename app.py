@@ -65,9 +65,10 @@ def daily_check_job():
     print(f"[{datetime.now()}] Running scheduled check...")
     changes = check_all_sites()
 
-    # Update last check date
+    # Update last check date and time on success
     metadata = load_metadata()
     metadata['last_check_date'] = date.today().isoformat()
+    metadata['last_check_time'] = datetime.now().isoformat()
     save_metadata(metadata)
 
     if changes:
@@ -77,15 +78,30 @@ def daily_check_job():
         print("No changes detected.")
 
 # Schedule daily check at 9 AM
-scheduler.add_job(daily_check_job, 'cron', hour=9, minute=0, id='daily_check')
+# misfire_grace_time=3600 allows the job to fire up to 1 hour late (e.g. if system was briefly slow)
+# coalesce=True prevents multiple firings if several were missed
+scheduler.add_job(daily_check_job, 'cron', hour=9, minute=0, id='daily_check',
+                  misfire_grace_time=3600, coalesce=True)
 
 def startup_check():
     """Run check on startup if we haven't checked today"""
-    if not has_checked_today():
-        print(f"[{datetime.now()}] No check performed today - running startup check...")
+    metadata = load_metadata()
+    last_check_time = metadata.get('last_check_time')
+
+    should_check = False
+    if not last_check_time:
+        should_check = True
+    else:
+        last_dt = datetime.fromisoformat(last_check_time)
+        hours_since = (datetime.now() - last_dt).total_seconds() / 3600
+        if hours_since >= 20:  # More than 20 hours since last check
+            should_check = True
+
+    if should_check:
+        print(f"[{datetime.now()}] No recent check found - running startup check...")
         daily_check_job()
     else:
-        print(f"[{datetime.now()}] Already checked today - skipping startup check")
+        print(f"[{datetime.now()}] Recent check found ({last_check_time}) - skipping startup check")
 
 @app.route('/')
 def index():
@@ -120,9 +136,11 @@ def get_sites():
         url = site['url']
         if url in snapshots:
             site['last_check'] = snapshots[url].get('last_check', 'Never')
+            site['last_changed'] = snapshots[url].get('last_changed')
             site['status'] = snapshots[url].get('status', 'unknown')
         else:
             site['last_check'] = 'Never'
+            site['last_changed'] = None
             site['status'] = 'new'
 
     response = jsonify(config['sites'])
@@ -141,6 +159,10 @@ def add_site():
 
     if not url:
         return jsonify({'error': 'URL is required'}), 400
+
+    # Auto-prepend https:// if no scheme provided
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://' + url
 
     config = load_config()
 
@@ -183,6 +205,25 @@ def delete_site(index):
             json.dump(snapshots, f, indent=2)
 
     return jsonify({'success': True})
+
+@app.route('/api/sites/<int:index>/title', methods=['PATCH'])
+def update_title(index):
+    config = load_config()
+
+    if index < 0 or index >= len(config['sites']):
+        return jsonify({'error': 'Invalid index'}), 400
+
+    data = request.json
+    new_title = data.get('title', '').strip()
+
+    if not new_title:
+        return jsonify({'error': 'Title cannot be empty'}), 400
+
+    config['sites'][index]['title'] = new_title
+    config['sites'][index]['title_locked'] = True
+    save_config(config)
+
+    return jsonify({'success': True, 'title': new_title})
 
 @app.route('/api/sites/<int:index>/category', methods=['PATCH'])
 def update_category(index):

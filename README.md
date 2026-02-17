@@ -1,154 +1,198 @@
 # Website Monitor
 
-Simple cross-platform website change detection with email alerts.
+A lightweight Python web app that monitors websites for changes and sends email notifications when updates are detected. Includes a dark-themed web GUI for managing monitored sites.
 
 ## Features
 
-- ✅ Monitor dozens of websites with hash-based change detection
-- ✅ Daily automated checks (9 AM scheduled)
-- ✅ Email digest notifications (one email per day with all changes)
-- ✅ Web dashboard to manage URLs
-- ✅ Optional categories for organization
-- ✅ Manual "Check Now" button
-- ✅ Works on Windows & Mac
+- Daily automated checks at 9:00 AM (+ startup check if missed)
+- Email digest notifications when changes are detected
+- Content-aware change detection (ignores scripts, styles, ads)
+- Optional CSS selectors for targeted monitoring
+- Editable site titles and categories
+- Sort by last changed or by category
+- Error tracking for unreachable sites
 
 ## Setup
 
-### 1. Install Python Dependencies
+### 1. Clone and install dependencies
 
 ```bash
+git clone <your-repo-url>
+cd website-monitor
 pip install -r requirements.txt
 ```
 
-### 2. Configure Email (Apple Mail)
+### 2. Configure email
 
-Edit `notifier.py` and update these lines with your Apple Mail credentials:
+Copy the example environment file and fill in your email credentials:
 
-```python
-SMTP_USERNAME = 'your-email@icloud.com'
-SMTP_PASSWORD = 'your-app-specific-password'
-FROM_EMAIL = 'your-email@icloud.com'
-TO_EMAIL = 'your-email@icloud.com'
+```bash
+cp .env.example .env
 ```
 
-**Important:** You need an app-specific password, not your regular iCloud password:
-1. Go to https://appleid.apple.com
-2. Sign in → Security section
-3. Click "Generate Password" under App-Specific Passwords
-4. Use this password in `notifier.py`
+Then edit `.env` with your details. See the provider-specific instructions below.
 
-### 3. Test Email Configuration
+#### Apple Mail (iCloud)
+
+```
+SMTP_SERVER=smtp.mail.me.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@me.com
+SMTP_PASSWORD=your-app-specific-password
+FROM_EMAIL=your-email@me.com
+TO_EMAIL=your-email@me.com
+```
+
+You need an **app-specific password** (not your regular iCloud password):
+1. Go to https://appleid.apple.com
+2. Sign in and navigate to **Sign-In and Security > App-Specific Passwords**
+3. Generate a new password and paste it in `.env`
+
+#### Gmail
+
+```
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+FROM_EMAIL=your-email@gmail.com
+TO_EMAIL=your-email@gmail.com
+```
+
+You need an **app password** (not your regular Google password):
+1. Enable 2-Factor Authentication on your Google account if you haven't already
+2. Go to https://myaccount.google.com/apppasswords
+3. Select **Mail** as the app and generate a password
+4. Paste the 16-character password in `.env`
+
+#### Other providers
+
+Use the SMTP settings from your email provider. Common ones:
+
+| Provider     | SMTP Server          | Port |
+|-------------|----------------------|------|
+| Outlook     | smtp.office365.com   | 587  |
+| Yahoo       | smtp.mail.yahoo.com  | 587  |
+| Fastmail    | smtp.fastmail.com    | 587  |
+
+### 3. Test email (optional)
 
 ```bash
 python notifier.py
 ```
 
-This sends a test email. If successful, you're ready!
+This sends a test email to verify your configuration.
 
-## Usage
-
-### Start the Monitor
+### 4. Run the app
 
 ```bash
 python app.py
 ```
 
-This will:
-- Start the web dashboard at http://localhost:5000
-- Schedule daily checks at 9:00 AM
-- Keep running until you press Ctrl+C
+Open http://localhost:5000 in your browser.
 
-### Add Websites
+## Usage
 
-1. Open http://localhost:5000 in your browser
-2. Enter a URL (e.g., `https://example.com`)
-3. Optionally add a category (e.g., `News`, `Shopping`, `Work`)
-4. Click "Add Site"
+### Adding sites
+Enter a URL in the input field and click **Add Site**. You can optionally set a category and a CSS selector for targeted monitoring. URLs without `https://` are auto-completed.
 
-### Check Manually
+### CSS selectors
+If a site triggers false positives (e.g. timestamps or ads change the hash), add a CSS selector to only monitor specific parts of the page. For example: `#main-content`, `.article-body`, `div.vacatures`.
 
-Click the green "Check Now" button in the dashboard to run an immediate check.
+### Editing entries
+- Click a **category badge** to change the category (select existing or type a new one)
+- Click the **pencil icon** to rename a site (manually set titles won't be overwritten by automatic title detection)
+- Click the **x icon** to remove a site (with confirmation)
 
-### Remove Sites
+### Sorting
+Use the dropdown to sort by:
+- **Last Changed** - most recently changed sites appear first
+- **Category** - sites grouped under category headers
 
-Click the red "Remove" button next to any site.
+### Manual check
+Click **Check Now** to trigger an immediate check of all sites.
 
-## How It Works
-
-1. **Hash Comparison:** Fetches each page's HTML content and creates a SHA-256 hash
-2. **Change Detection:** Compares current hash with previous snapshot
-3. **Notifications:** Sends one digest email with all detected changes
-4. **Storage:** Uses JSON files in `data/` directory
-   - `config.json` - Your monitored URLs and categories
-   - `snapshots.json` - Last known hashes and timestamps
-
-## File Structure
+## File structure
 
 ```
-simple-monitor/
-├── app.py              # Flask app + APScheduler
-├── fetcher.py          # Hash-based change detection
-├── notifier.py         # Email sender (configure this!)
+website-monitor/
+├── app.py              # Flask web server + scheduler
+├── fetcher.py          # Site fetching, hashing, change detection
+├── notifier.py         # Email notifications
 ├── requirements.txt    # Python dependencies
-├── data/
-│   ├── config.json     # Your sites
-│   └── snapshots.json  # Hashes
-└── templates/
-    └── index.html      # Dashboard UI
+├── .env                # Your email credentials (not in git)
+├── .env.example        # Template for new users
+├── .gitignore          # Keeps secrets and user data out of git
+├── templates/
+│   └── index.html      # Web GUI
+└── data/               # Created automatically on first run
+    ├── config.json     # Monitored sites list
+    ├── snapshots.json  # Content hashes and status
+    └── metadata.json   # Scheduler metadata
 ```
 
 ## Customization
 
-### Change Check Schedule
+### Change check schedule
 
-Edit `app.py`, line with `scheduler.add_job`:
+Edit `app.py`, find the `scheduler.add_job` line:
 
 ```python
 # Current: Daily at 9:00 AM
-scheduler.add_job(daily_check_job, 'cron', hour=9, minute=0)
+scheduler.add_job(daily_check_job, 'cron', hour=9, minute=0, ...)
 
 # Every 6 hours:
-scheduler.add_job(daily_check_job, 'interval', hours=6)
+scheduler.add_job(daily_check_job, 'interval', hours=6, ...)
 
 # Every Monday at 10:30 AM:
-scheduler.add_job(daily_check_job, 'cron', day_of_week='mon', hour=10, minute=30)
+scheduler.add_job(daily_check_job, 'cron', day_of_week='mon', hour=10, minute=30, ...)
 ```
 
-### Change Port
+### Change port
 
-Edit `app.py`, last line:
+Edit the last line of `app.py`:
 
 ```python
-app.run(debug=True, use_reloader=False, port=8080)  # Use port 8080 instead
+app.run(debug=True, use_reloader=False, port=8080)
 ```
+
+## Running on startup (Windows)
+
+### Option A: Task Scheduler (recommended)
+1. Open **Task Scheduler** and create a new basic task
+2. Trigger: **When the computer starts** or **When I log on**
+3. Action: Start a program
+4. Program: path to `pythonw.exe` (e.g. `C:\Python311\pythonw.exe`)
+5. Arguments: `app.py`
+6. Start in: the full path to this folder
+
+### Option B: Startup folder
+1. Create a `.bat` file:
+   ```bat
+   @echo off
+   cd /d "C:\path\to\website-monitor"
+   pythonw app.py
+   ```
+2. Press `Win+R`, type `shell:startup`, press Enter
+3. Place the `.bat` file in that folder
+
+Note: Use `pythonw.exe` (not `python.exe`) to run without a visible terminal window.
 
 ## Troubleshooting
 
 **Email not sending?**
-- Verify your app-specific password (not regular iCloud password)
-- Check SMTP settings in `notifier.py`
+- Make sure you're using an app-specific password, not your regular password
+- Verify SMTP settings in `.env`
 - Run `python notifier.py` to test
 
-**Site not being checked?**
+**Changes detected every check (false positives)?**
+- The site likely has dynamic content (timestamps, ads, session IDs)
+- Add a CSS selector to monitor only the relevant part of the page
+
+**Site showing as unreachable?**
 - Some sites block automated requests
-- Check the dashboard status column for errors
-
-**Changes not detected?**
-- Some sites update timestamps/ads constantly (hash changes on every load)
-- Consider using a more selective approach if needed
-
-## Platform Notes
-
-- **Mac:** Works out of the box
-- **Windows:** Same setup, just use Command Prompt or PowerShell
-
-## Safety
-
-- Starts manually (not as background service by default)
-- Press Ctrl+C to stop at any time
-- Data stored locally in JSON files
-- No external dependencies except SMTP for email
+- Check if the URL is correct and includes `https://`
 
 ---
 
-Built with Flask, APScheduler, and requests. Inspired by changedetection.io.
+Built with Flask, APScheduler, requests, and BeautifulSoup.
